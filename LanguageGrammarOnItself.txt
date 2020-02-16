@@ -1,0 +1,8 @@
+(axiom S) = (S1).
+(S1) = (P) (S2).
+(S2) = (P) (S2) | .
+(P) = (L) (P1).
+(P1) = (R) (R1) dot | dot.
+(L) = nonterm equals | axiomnonterm equals.
+(R) = nonterm | term | pipe.
+(R1) = (R) (R1) | .
