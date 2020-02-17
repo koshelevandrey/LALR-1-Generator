@@ -47,6 +47,7 @@ public class MainLexer {
                 // Нашли терминал dot
                 position.nextChar();
                 return new Token("dot", new Position(startPos), new Position(position), ".");
+
             } else if (position.currentChar() == '\\') {
                 // Нашли backslash
                 // Следующим символом должен следовать терминал

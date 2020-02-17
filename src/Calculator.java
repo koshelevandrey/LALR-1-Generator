@@ -3,46 +3,33 @@ import java.util.ArrayList;
 
 public class Calculator {
 
+    /*
+    (axiom E) = (T) | (E) + (T).
+    (T) = (F) | (T) * (F).
+    (F) = n | \( (E) \).
+     */
+
     // Рекурсивно проходит по дереву арифметического выражения и получает его значение
     private static int goThroughArithmTree(Node node) {
         if (node.getMarker() != null) {
             if (node.getMarker().equals("E")) {
-                // (axiom E) = (T) (E1).
-                return goThroughArithmTree(node.children.get(0)) + goThroughArithmTree(node.children.get(1));
-            } else if (node.getMarker().equals("E1")) {
-                // (E1) = + (T) (E1) | .
-                if (node.children.size() == 3) {
-                    if (node.children.get(2).children.size() == 1 && node.children.get(2).children.get(0).getToken() != null ||
-                            node.children.get(2).children.get(0).getToken().getAttr().equals("epsilon")) {
-                        // Если E1 раскрывается в epsilon
-                        return goThroughArithmTree(node.children.get(1));
-                    }
-                    return goThroughArithmTree(node.children.get(1)) + goThroughArithmTree(node.children.get(2));
-                } else {
-                    return 0;
-                }
-            } else if (node.getMarker().equals("T")) {
-                // (T) = (F) (T1).
-                return goThroughArithmTree(node.children.get(0)) * goThroughArithmTree(node.children.get(1));
-            } else if (node.getMarker().equals("F")) {
-                // (F) = n | \( (E) \).
-                if (node.children.size() == 3) {
-                    return goThroughArithmTree(node.children.get(1));
-                } else {
+                // (axiom E) = (T) | (E) + (T).
+                if (node.children.size() == 1) {
                     return goThroughArithmTree(node.children.get(0));
                 }
-            } else if (node.getMarker().equals("T1")) {
-                // (T1) = * (F) (T1) | .
-                if (node.children.size() == 3) {
-                    if (node.children.get(2).children.size() == 1 && node.children.get(2).children.get(0).getToken() != null ||
-                            node.children.get(2).children.get(0).getToken().getAttr().equals("epsilon")) {
-                        // Если T1 раскрывается в epsilon
-                        return goThroughArithmTree(node.children.get(1));
-                    }
-                    return goThroughArithmTree(node.children.get(1)) * goThroughArithmTree(node.children.get(2));
-                } else {
-                    return 1;
+                return goThroughArithmTree(node.children.get(0)) + goThroughArithmTree(node.children.get(2));
+            } else if (node.getMarker().equals("T")) {
+                // (T) = (F) | (T) * (F).
+                if (node.children.size() == 1) {
+                    return goThroughArithmTree(node.children.get(0));
                 }
+                return goThroughArithmTree(node.children.get(0)) * goThroughArithmTree(node.children.get(2));
+            } else if (node.getMarker().equals("F")) {
+                // (F) = n | \( (E) \).
+                if (node.children.size() == 1) {
+                    return goThroughArithmTree(node.children.get(0));
+                }
+                return goThroughArithmTree(node.children.get(1));
             }
         } else {
             Token token = node.getToken();
