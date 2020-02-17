@@ -47,6 +47,9 @@ public class Node {
     public String toString() {
         if (marker != null) return marker;
         else {
+            if (token.getTag().equals(token.getAttr())) {
+                return token.getTag();
+            }
             return "(" + token.getTag() + ", " + token.getAttr() + ")";
         }
     }

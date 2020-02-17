@@ -22,4 +22,9 @@ public class Token {
     public String getAttr() {
         return attr;
     }
+
+    @Override
+    public String toString() {
+        return "(" + tag + ", " + attr + ")";
+    }
 }

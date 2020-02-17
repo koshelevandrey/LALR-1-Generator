@@ -2,16 +2,19 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class LRParser {
-    private ArrayList<Rule> rules;
-    private HashMap<String, HashMap<String, HashMap<String, String>>> table;
+    private Rule[] rules;
+    private HashMap<String, HashMap<String, String>> actionTable;
+    private HashMap<String, HashMap<String, String>> gotoTable;
 
-    public LRParser(ArrayList<Rule> rules,
-                    HashMap<String, HashMap<String, HashMap<String, String>>> table) {
+    public LRParser(Rule[] rules,
+                    HashMap<String, HashMap<String, String>> actionTable,
+                    HashMap<String, HashMap<String, String>> gotoTable) {
         this.rules = rules;
-        this.table = table;
+        this.actionTable = actionTable;
+        this.gotoTable = gotoTable;
     }
 
-    // Парсит и возвращает дерево разбора
+    // Парсит и возвращает корень дерева разбора
     public Node Parse(ArrayList<Token> tokens) {
         // Стек состояний
         ArrayList<String> statesStack = new ArrayList<>();
@@ -53,7 +56,7 @@ public class LRParser {
             */
 
             String curStateName = statesStack.get(statesStack.size()-1);
-            String actionStr = table.get(curStateName).get("ACTION").get(curToken.getTag());
+            String actionStr = actionTable.get(curStateName).get(curToken.getTag());
             if (actionStr == null) {
                 throw new Error("syntax error");
             }
@@ -64,7 +67,7 @@ public class LRParser {
             }
             if (actionStr.substring(0, 1).equals("r")) {
                 int numberOfRule = Integer.valueOf(actionStr.substring(1));
-                Rule ruleToUse = rules.get(numberOfRule);
+                Rule ruleToUse = rules[numberOfRule];
 
                 /*
                 System.out.println("RULE USED:");
@@ -96,7 +99,7 @@ public class LRParser {
                 System.out.println();
                 */
 
-                String stateToAdd = table.get(curStateName).get("GOTO").get(ruleToUse.getLeftPart());
+                String stateToAdd = gotoTable.get(curStateName).get(ruleToUse.getLeftPart());
                 statesStack.add(stateToAdd);
 
                 // Добавляем epsilon в список вершин, если встретили пустое правило

@@ -14,18 +14,12 @@ public class LALRGenerator {
     // Множества FIRST
     private HashMap<String, HashSet<String>> firsts;
 
-    // Сгенерированные упорядоченные правила
-    // (порядок правил важен во время работы парсера)
-    private ArrayList<Rule> generatedRules;
-
-    // Сгенерированная таблица, содержащая ACTION и GOTO
-    private HashMap<String, HashMap<String, HashMap<String, String>>> generatedTable;
-
-    public LALRGenerator(Node treeNode) {
+    public LALRGenerator(Node treeNode, String fileName) {
         // a) Из дерева разбора находим терминалы, нетерминалы, правила, аксиому, множества FIRST
+        // Параллельно с этим выполняется семантический анализ
 
         // 1) Находим терминалы, нетерминалы и аксиому, а также проверяем, что у всех нетерминал есть хотя бы одно
-        // правило, по которому они раскрываются
+        // правило, по которому они раскрываются.
         terms = new HashSet<>();
         nonterms = new HashSet<>();
         axiom = null;
@@ -79,6 +73,12 @@ public class LALRGenerator {
         System.out.println("FIRST:");
         System.out.println(firsts.toString());
         */
+
+        // Проверяем, что аксиома была найдена
+        if (axiom == null) {
+            System.out.println("[ERROR] couldn't find axiom");
+            return;
+        }
 
         // б) Строим LALR(1)-состояния
 
@@ -379,30 +379,7 @@ public class LALRGenerator {
         }
         */
 
-        generatedRules = simpleRules;
-        // Преобразовываем таблицы к удобному для использования виду
-        generatedTable = new HashMap<>();
-        for (State st : unitedKernelStates) {
-            generatedTable.put(st.getName(), new HashMap<>());
-            generatedTable.get(st.getName()).put("ACTION", new HashMap<>());
-            generatedTable.get(st.getName()).put("GOTO", new HashMap<>());
-
-            // ACTION
-            for(Map.Entry<String, String> entry : st.getActionMap().entrySet()) {
-                String key = entry.getKey();
-                String value = entry.getValue();
-
-                generatedTable.get(st.getName()).get("ACTION").put(key, value);
-            }
-
-            // GOTO
-            for(Map.Entry<String, String> entry : st.getGotoMap().entrySet()) {
-                String key = entry.getKey();
-                String value = entry.getValue();
-
-                generatedTable.get(st.getName()).get("GOTO").put(key, value);
-            }
-        }
+        printRulesAndTablesToFile(fileName, simpleRules, unitedKernelStates);
     }
 
     // Ищет терминалы, нетерминалы, аксиому по дереву разбора
@@ -411,41 +388,19 @@ public class LALRGenerator {
         if (node.getMarker() != null) {
             String nodeMarker = node.getMarker();
             if (nodeMarker.equals("S")) {
-                // (axiom S) = (S1).
-                if (node.children != null && node.children.size() >= 1) {
-                    // Заходим в S1
-                    findTermsNontermsAxiom(node.children.get(0), declaredNonterms);
-                }
-            } else if (nodeMarker.equals("S1")) {
-                // (S1) = (P) (S2).
+                // (axiom S) = (P) (S) | .
                 if (node.children != null && node.children.size() >= 2) {
                     // Заходим в P
                     findTermsNontermsAxiom(node.children.get(0), declaredNonterms);
-                    // Заходим в S2
-                    findTermsNontermsAxiom(node.children.get(1), declaredNonterms);
-                }
-            } else if (nodeMarker.equals("S2")) {
-                // (S2) = (P) (S2) | .
-                if (node.children != null && node.children.size() >= 2) {
-                    // Заходим в P
-                    findTermsNontermsAxiom(node.children.get(0), declaredNonterms);
-                    // Заходим в S2
+                    // Заходим в S
                     findTermsNontermsAxiom(node.children.get(1), declaredNonterms);
                 }
             } else if (nodeMarker.equals("P")) {
-                // (P) = (L) (P1).
-                if (node.children != null && node.children.size() >= 2) {
+                // (P) = (L) (R) dot.
+                if (node.children != null && node.children.size() >= 3) {
                     // Заходим в L
                     findTermsNontermsAxiom(node.children.get(0), declaredNonterms);
-                    // Заходим в P1
-                    findTermsNontermsAxiom(node.children.get(1), declaredNonterms);
-                }
-            } else if (nodeMarker.equals("P1")) {
-                // (P1) = (R) (R1) dot | dot.
-                if (node.children != null && node.children.size() >= 3) {
                     // Заходим в R
-                    findTermsNontermsAxiom(node.children.get(0), declaredNonterms);
-                    // Заходим в R1
                     findTermsNontermsAxiom(node.children.get(1), declaredNonterms);
                 }
             } else if (nodeMarker.equals("L")) {
@@ -472,7 +427,15 @@ public class LALRGenerator {
                     }
                 }
             } else if (nodeMarker.equals("R")) {
-                // (R) = nonterm | term | pipe.
+                // (R) = (R1) (R) | .
+                if (node.children != null && node.children.size() >= 2) {
+                    // Заходим в R1
+                    findTermsNontermsAxiom(node.children.get(0), declaredNonterms);
+                    // Заходим в R
+                    findTermsNontermsAxiom(node.children.get(1), declaredNonterms);
+                }
+            } else if (nodeMarker.equals("R1")) {
+                // (R1) = nonterm | term | pipe.
                 if (node.children != null && node.children.size() >= 1) {
                     if (node.children.get(0).getToken() != null) {
                         Token foundToken = node.children.get(0).getToken();
@@ -485,14 +448,6 @@ public class LALRGenerator {
                         }
                     }
                 }
-            } else if (nodeMarker.equals("R1")) {
-                // (R1) = (R) (R1) | .
-                if (node.children != null && node.children.size() >= 2) {
-                    // Заходим в R
-                    findTermsNontermsAxiom(node.children.get(0), declaredNonterms);
-                    // Заходим в R1
-                    findTermsNontermsAxiom(node.children.get(1), declaredNonterms);
-                }
             }
         }
     }
@@ -502,33 +457,18 @@ public class LALRGenerator {
         if (node.getMarker() != null) {
             String nodeMarker = node.getMarker();
             if (nodeMarker.equals("S")) {
-                // (axiom S) = (S1).
-                if (node.children != null && node.children.size() >= 1) {
-                    // Заходим в S1
-                    findRules(node.children.get(0));
-                }
-            } else if (nodeMarker.equals("S1")) {
-                // (S1) = (P) (S2).
+                // (axiom S) = (P) (S) | .
                 if (node.children != null && node.children.size() >= 2) {
                     // Заходим в P
                     findRules(node.children.get(0));
-                    // Заходим в S2
-                    findRules(node.children.get(1));
-                }
-            } else if (nodeMarker.equals("S2")) {
-                // (S2) = (P) (S2) | .
-                if (node.children != null && node.children.size() >= 2) {
-                    // Заходим в P
-                    findRules(node.children.get(0));
-                    // Заходим в S2
+                    // Заходим в S
                     findRules(node.children.get(1));
                 }
             } else if (nodeMarker.equals("P")) {
-                // (P) = (L) (P1).
-                // (L) = nonterm equals | axiomnonterm equals.
-                // (P1) = (R) (R1) dot | dot.
+                // (P) = (L) (R) dot.
                 // Здесь отмечаем правила
-                if (node.children != null && node.children.size() >= 2) {
+                if (node.children != null && node.children.size() >= 3) {
+                    // (L) = nonterm equals | axiomnonterm equals.
                     Node lNode = node.children.get(0);
                     if (lNode.children != null && lNode.children.size() >= 2) {
                         if (lNode.children.get(0).getToken().getTag().equals("nonterm") ||
@@ -538,20 +478,21 @@ public class LALRGenerator {
 
                             // Ищем, во что нетерминал раскрывается по правилу
                             ArrayList<String> ruleRightPart = new ArrayList<>();
-                            Node p1Node = node.children.get(1);
+                            Node rNode = node.children.get(1);
 
-                            if (p1Node.children != null && p1Node.children.size() >= 3) {
-                                Node rNode = p1Node.children.get(0);
-                                // (R) = nonterm | term | pipe.
-                                // Раскрываем R
-                                if (rNode.children != null && rNode.children.size() >= 1 &&
-                                        rNode.children.get(0).getToken() != null) {
-                                    Token rNodeToken = rNode.children.get(0).getToken();
-                                    if (rNodeToken.getTag().equals("nonterm") || rNodeToken.getTag().equals("term")) {
+                            // (R) = (R1) (R) | .
+                            if (rNode.children != null && rNode.children.size() >= 2) {
+                                Node r1Node = rNode.children.get(0);
+                                // (R1) = nonterm | term | pipe.
+                                // Раскрываем R1
+                                if (r1Node.children != null && r1Node.children.size() >= 1 &&
+                                        r1Node.children.get(0).getToken() != null) {
+                                    Token r1NodeToken = r1Node.children.get(0).getToken();
+                                    if (r1NodeToken.getTag().equals("nonterm") || r1NodeToken.getTag().equals("term")) {
                                         // Добавляем нетерминал или терминал в правило
-                                        ruleRightPart.add(rNodeToken.getAttr());
-                                    } else if (rNodeToken.getTag().equals("pipe")) {
-                                        // Добавляем, если необходимо, пустое правило и создаём новое // TODO: тут epsilon
+                                        ruleRightPart.add(r1NodeToken.getAttr());
+                                    } else if (r1NodeToken.getTag().equals("pipe")) {
+                                        // Добавляем, если необходимо, пустое правило и создаём новое
                                         if (ruleRightPart.size() == 0) {
                                             ruleRightPart.add("");
                                         }
@@ -561,21 +502,21 @@ public class LALRGenerator {
                                     }
                                 }
 
-                                // Раскрываем R1
-                                // (R1) = (R) (R1) | .
-                                Node r1Node = p1Node.children.get(1);
+                                // Раскрываем R
+                                // (R) = (R1) (R) | .
+                                Node nextRNode = rNode.children.get(1);
                                 while (true) {
-                                    if (r1Node.children != null && r1Node.children.size() >= 2) {
-                                        rNode = r1Node.children.get(0);
+                                    if (nextRNode.children != null && nextRNode.children.size() >= 2) {
+                                        r1Node = nextRNode.children.get(0);
 
-                                        if (rNode.children != null && rNode.children.size() >= 1 &&
-                                                rNode.children.get(0).getToken() != null) {
-                                            Token rNodeToken = rNode.children.get(0).getToken();
-                                            if (rNodeToken.getTag().equals("nonterm") || rNodeToken.getTag().equals("term")) {
+                                        if (r1Node.children != null && r1Node.children.size() >= 1 &&
+                                                r1Node.children.get(0).getToken() != null) {
+                                            Token r1NodeToken = r1Node.children.get(0).getToken();
+                                            if (r1NodeToken.getTag().equals("nonterm") || r1NodeToken.getTag().equals("term")) {
                                                 // Добавляем нетерминал или терминал в правило
-                                                ruleRightPart.add(rNodeToken.getAttr());
-                                            } else if (rNodeToken.getTag().equals("pipe")) {
-                                                // Добавляем, если необходимо, пустое правило и создаём новое // TODO: тут epsilon
+                                                ruleRightPart.add(r1NodeToken.getAttr());
+                                            } else if (r1NodeToken.getTag().equals("pipe")) {
+                                                // Добавляем, если необходимо, пустое правило и создаём новое
                                                 if (ruleRightPart.size() == 0) {
                                                     ruleRightPart.add("");
                                                 }
@@ -585,8 +526,8 @@ public class LALRGenerator {
                                             }
                                         }
 
-                                        r1Node = r1Node.children.get(1);
-                                    } else if (r1Node.children != null) {
+                                        nextRNode = nextRNode.children.get(1);
+                                    } else if (nextRNode.children != null) {
                                         if (ruleRightPart.size() == 0) {
                                             ruleRightPart.add("");
                                         }
@@ -595,7 +536,7 @@ public class LALRGenerator {
                                 }
 
                                 rules.get(nontermStr).add(ruleRightPart);
-                            } else if (p1Node.children != null && p1Node.children.size() >= 1) {
+                            } else if (rNode.children != null && rNode.children.size() >= 1) {
                                 // Добавляем раскрытие в epsilon
                                 ruleRightPart.add("");
                                 rules.get(nontermStr).add(ruleRightPart);
@@ -607,7 +548,7 @@ public class LALRGenerator {
         }
     }
 
-    // Заполняет множества first
+    // Заполняет множества FIRST
     // (алгоритм взят из лекций по компиляторам)
     public void fillFirstSets() {
         // Было ли множество first обновлено за итерацию
@@ -695,6 +636,7 @@ public class LALRGenerator {
         ArrayList<Point> gotoPoints = new ArrayList<>();
         for (Point curPoint : state.getPoints()) {
             // Находим правила с точкой перед X
+
             if (curPoint.getPointPosition() < curPoint.getRightPart().size() &&
                 curPoint.getRightPart().get(curPoint.getPointPosition()).equals(symbol)) {
                 // Добавляем пункт с точкой на 1 позицию дальше
@@ -709,70 +651,62 @@ public class LALRGenerator {
         return gotoState;
     }
 
-    // Сохраняет (сериализует) правила и таблицы LALR в файл
-    public void saveRulesAndTables(String rulesFileName,
-                                   String tableFileName) {
+    // Печатает правила и таблицы в Java-класс
+    public void printRulesAndTablesToFile(String fileName, ArrayList<Rule> rulesToSave, ArrayList<State> parserStates) {
         try {
-            FileOutputStream f = new FileOutputStream(new File(rulesFileName));
-            ObjectOutputStream o = new ObjectOutputStream(f);
+            FileWriter classFile = new FileWriter("src/" + fileName + ".java");
+            classFile.write("import java.util.HashMap;\n\n");
+            classFile.write("class " + fileName + " {\n");
+            classFile.write("\tpublic static HashMap<String, HashMap<String, String>> actionTable =" +
+                    "new HashMap<>(" + parserStates.size() + ");\n");
+            classFile.write("\tpublic static HashMap<String, HashMap<String, String>> gotoTable = " +
+                    "new HashMap<>(" + parserStates.size() + ");\n");
+            // Заполняем набор правил
+            classFile.write("\n\tpublic static Rule rules[] = {\n");
+            for (Rule r : rulesToSave) {
+                classFile.write("\t  new Rule (" + "\"" + r.getLeftPart() + "\", new String[] {");
+                if (r.getRightPart().size() >= 1) {
+                    classFile.write("\"" + r.getRightPart().get(0) + "\"");
+                    for (int i = 1; i < r.getRightPart().size(); i++) {
+                        classFile.write(", \"" + r.getRightPart().get(i) + "\"");
+                    }
+                }
 
-            FileOutputStream f2 = new FileOutputStream(new File(tableFileName));
-            ObjectOutputStream o2 = new ObjectOutputStream(f2);
+                classFile.write("}),\n");
+            }
+            classFile.write("\t};\n");
 
-            o.writeObject(generatedRules);
-            o2.writeObject(generatedTable);
+            classFile.write("\n\tstatic{\n");
 
-            o.close();
-            f.close();
+            // Заполняем таблицы
+            classFile.write("\t\tHashMap<String, String> map;\n");
+            for (State st : parserStates) {
+                // Заполняем ACTION
+                classFile.write("\n\t\tmap = new HashMap<>(" + st.getActionMap().size() + ");\n");
+                classFile.write("\t\tactionTable.put(" + "\"" + st.getName() + "\", map);\n");
+                for(Map.Entry<String, String> entry : st.getActionMap().entrySet()) {
+                    String key = entry.getKey();
+                    String value = entry.getValue();
+                    classFile.write("\t\tmap.put(" + "\"" + key + "\", " + "\"" + value + "\");\n");
+                }
 
-            o2.close();
-            f2.close();
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found:" + e);
-        } catch (IOException e) {
-            System.out.println("Error initializing stream:" + e);
+                // Заполняем GOTO
+                classFile.write("\n\t\tmap = new HashMap<>(" + st.getGotoMap().size() + ");\n");
+                classFile.write("\t\tgotoTable.put(" + "\"" + st.getName() + "\", map);\n");
+                for(Map.Entry<String, String> entry : st.getGotoMap().entrySet()) {
+                    String key = entry.getKey();
+                    String value = entry.getValue();
+                    classFile.write("\t\tmap.put(" + "\"" + key + "\", " + "\"" + value + "\");\n");
+                }
+            }
+            classFile.write("\t}\n");
+
+
+            classFile.write("}");
+
+            classFile.close();
+        } catch (IOException err) {
+            System.out.println("[ERROR] while writing to file: " + err);
         }
-    }
-
-    public static ArrayList<Rule> readRules(String rulesFileName) {
-        ArrayList<Rule> readRules = null;
-        try {
-            FileInputStream fi = new FileInputStream(new File(rulesFileName));
-            ObjectInputStream oi = new ObjectInputStream(fi);
-
-            readRules = (ArrayList<Rule>) oi.readObject();
-
-            oi.close();
-            fi.close();
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found:" + e);
-        } catch (IOException e) {
-            System.out.println("Error initializing stream:" + e);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        return readRules;
-    }
-
-    public static HashMap<String, HashMap<String, HashMap<String, String>>> readTable(String tableFileName) {
-        HashMap<String, HashMap<String, HashMap<String, String>>> readTable = null;
-        try {
-            FileInputStream fi = new FileInputStream(new File(tableFileName));
-            ObjectInputStream oi = new ObjectInputStream(fi);
-
-            readTable = (HashMap<String, HashMap<String, HashMap<String, String>>>) oi.readObject();
-
-            oi.close();
-            fi.close();
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found:" + e);
-        } catch (IOException e) {
-            System.out.println("Error initializing stream:" + e);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        return readTable;
     }
 }
