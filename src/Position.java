@@ -52,4 +52,20 @@ public class Position {
     public int getCol() {
         return col;
     }
+
+    public boolean isArithmOp() {
+        return this.currentChar() == '+' || this.currentChar() == '-' || this.currentChar() == '*'
+                || this.currentChar() == '/';
+    }
+
+    public boolean isReserved() {
+        return this.currentChar() == '=' || this.currentChar() == '(' || this.currentChar() == ')'
+                || this.currentChar() == '|' || this.currentChar() == '.' || this.currentChar() == '\\';
+    }
+
+    public boolean isPunct() {
+        return this.currentChar() == '!' || this.currentChar() == '?' || this.currentChar() == ';'
+                || this.currentChar() == ':' || this.currentChar() == '-' || this.currentChar() == '"'
+                || this.currentChar() == ',';
+    }
 }

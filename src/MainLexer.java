@@ -47,14 +47,19 @@ public class MainLexer {
                 // Нашли терминал dot
                 position.nextChar();
                 return new Token("dot", new Position(startPos), new Position(position), ".");
-
             } else if (position.currentChar() == '\\') {
                 // Нашли backslash
-                // Следующим символом должен следовать терминал
+                // Следующим символом может следовать терминал
                 startPos = new Position(position.nextChar());
-                position.nextChar();
-                return new Token("term", new Position(startPos), new Position(position),
-                        program.substring(startPos.getIndex(), position.getIndex()));
+                if (startPos.isReserved()) {
+                    position.nextChar();
+                    return new Token("term", new Position(startPos), new Position(position),
+                            program.substring(startPos.getIndex(), position.getIndex()));
+                } else {
+                    // Возвращаем ошибку
+                    return new Token("error", new Position(startPos), new Position(position),
+                            "not legal symbol after \\");
+                }
             } else if (position.currentChar() == '(') {
                 // Нашли открывающую скобку
                 while (true) {
@@ -64,8 +69,7 @@ public class MainLexer {
                     } else if (position.currentChar() == ')') {
                         // Нашли закрывающую скобку
                         // Проверяем, нет ли после открывающей скобки строки "axiom "
-                        if (program.substring(startPos.getIndex()+1, startPos.getIndex()+7)
-                                .equals("axiom ")) {
+                        if (program.substring(startPos.getIndex()+1, startPos.getIndex()+7).equals("axiom ")) {
                             // Нашли аксиому грамматики
                             position.nextChar();
                             // Находим нетерминал, соответствующий аксиоме
@@ -91,17 +95,29 @@ public class MainLexer {
                         // Возвращаем ошибку
                         position.nextChar();
                         return new Token("error", new Position(startPos), new Position(position),
-                                "not alpha symbol after lparen");
+                                "not alpha or digit symbol after lparen");
                     }
                 }
             } else {
                 // Возвращаем токен-терминал
-                while (position.currentChar() != -1 && !Character.isWhitespace(position.currentChar()) &&
-                        position.currentChar() != '.') {
+                if (Character.isAlphabetic(position.currentChar())) {
+                    while (position.currentChar() != -1 && !Character.isWhitespace(position.currentChar()) &&
+                            (Character.isAlphabetic(position.currentChar()) || Character.isDigit(position.currentChar()))) {
+                        position.nextChar();
+                    }
+                    return new Token("term", new Position(startPos), new Position(position),
+                            program.substring(startPos.getIndex(), position.getIndex()));
+                } else if (position.isArithmOp() || position.isPunct()) {
+                    // Знак арифметической операции или знак пунктуации
                     position.nextChar();
+                    return new Token("term", new Position(startPos), new Position(position),
+                            program.substring(startPos.getIndex(), position.getIndex()));
+                } else {
+                    // Возвращаем ошибку
+                    position.nextChar();
+                    return new Token("error", new Position(startPos), new Position(position),
+                            "unallowed symbol");
                 }
-                return new Token("term", new Position(startPos), new Position(position),
-                        program.substring(startPos.getIndex(), position.getIndex()));
             }
         }
 
