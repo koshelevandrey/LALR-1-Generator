@@ -62,16 +62,21 @@ public class Calculator {
         // Получаем токены
         ArrayList<Token> tokens = lexer.getAllTokens();
         // Если есть ошибки, печатаем токены и завершаем работу
-        if (MainLexer.hasErrors(tokens)) {
+        if (ArithmLexer.hasErrors(tokens)) {
             System.out.println("[ERROR] Lexer has errors");
-            MainLexer.printTokens(tokens);
+            ArithmLexer.printTokens(tokens);
             return;
         }
 
         Node treeRoot = null;
         // Строим дерево разбора с использованием универсального LR-парсера
         LRParser lrParser = new LRParser(ArithmGrammarData.rules, ArithmGrammarData.actionTable, ArithmGrammarData.gotoTable);
-        treeRoot = lrParser.Parse(tokens);
+        try {
+            treeRoot = lrParser.Parse(tokens);
+        } catch (Error error) {
+            System.out.println("[ERROR] while parsing: " + error);
+            return;
+        }
 
         if (treeRoot == null) {
             System.out.println("[ERROR] tree root wasn't created");

@@ -35,7 +35,12 @@ public class ParserGenerator {
         Node treeRoot = null;
         // Строим дерево разбора с использованием универсального LR-парсера
         LRParser lrParser = new LRParser(MainGrammarData.rules, MainGrammarData.actionTable, MainGrammarData.gotoTable);
-        treeRoot = lrParser.Parse(tokens);
+        try {
+            treeRoot = lrParser.Parse(tokens);
+        } catch (Error error) {
+            System.out.println("[ERROR] while parsing: " + error);
+            return;
+        }
 
         if (treeRoot == null) {
             System.out.println("[ERROR] tree root wasn't created");

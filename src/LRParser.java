@@ -58,7 +58,10 @@ public class LRParser {
             String curStateName = statesStack.get(statesStack.size()-1);
             String actionStr = actionTable.get(curStateName).get(curToken.getTag());
             if (actionStr == null) {
-                throw new Error("syntax error");
+                throw new Error("got unexpected token: " + "(" + curToken.getTag() +
+                        ", " + curToken.getAttr() + ") : " +
+                        "(" + curToken.getStart().getLine() + ", " + curToken.getStart().getCol() + ") - (" +
+                        curToken.getFollow().getLine() + ", " + curToken.getFollow().getCol() + ")");
             }
             if (actionStr.substring(0, 1).equals("s")) {
                 statesStack.add(actionStr.substring(1));

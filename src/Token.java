@@ -23,6 +23,14 @@ public class Token {
         return attr;
     }
 
+    public Position getStart() {
+        return start;
+    }
+
+    public Position getFollow() {
+        return follow;
+    }
+
     @Override
     public String toString() {
         return "(" + tag + ", " + attr + ")";

@@ -95,7 +95,8 @@ public class MainLexer {
                         // Возвращаем ошибку
                         position.nextChar();
                         return new Token("error", new Position(startPos), new Position(position),
-                                "not alpha or digit symbol after lparen");
+                                "not alpha or digit symbol after lparen: " +
+                                        program.substring(startPos.getIndex(), position.getIndex()));
                     }
                 }
             } else {
@@ -116,7 +117,7 @@ public class MainLexer {
                     // Возвращаем ошибку
                     position.nextChar();
                     return new Token("error", new Position(startPos), new Position(position),
-                            "unallowed symbol");
+                            "unallowed symbol " + program.substring(startPos.getIndex(), position.getIndex()));
                 }
             }
         }
@@ -152,7 +153,12 @@ public class MainLexer {
     public static void printTokens(ArrayList<Token> tokens) {
         for (int i = 0; i < tokens.size(); i++) {
             Token curToken = tokens.get(i);
-            System.out.println("(" + curToken.getTag() + ", " + curToken.getAttr() + ")");
+            if (curToken.getTag().equals("error")) {
+                System.out.print("[ERROR]" );
+            }
+            System.out.println("(" + curToken.getTag() + ", " + curToken.getAttr() + ") : " +
+                    "(" + curToken.getStart().getLine() + ", " + curToken.getStart().getCol() + ") - (" +
+                    curToken.getFollow().getLine() + ", " + curToken.getFollow().getCol() + ")");
         }
     }
 
